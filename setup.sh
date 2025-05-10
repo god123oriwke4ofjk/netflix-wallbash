@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# Script to set up Netflix theming with Wallbash
-# Creates netflix.dcol, netflix.sh, and updates main.js
+# Script to set up Netflix theming with Wallbash (dynamic color updates)
+# Creates or overwrites netflix.dcol, netflix.sh, and updates main.js
 
 set -e
 
@@ -21,7 +21,7 @@ fi
 mkdir -p "$WALLBASH_ALWAYS_DIR"
 mkdir -p "$WALLBASH_SCRIPTS_DIR"
 
-echo "Creating $NETFLIX_DCOL..."
+echo "Creating or overwriting $NETFLIX_DCOL..."
 cat > "$NETFLIX_DCOL" << 'EOF'
 ${XDG_CACHE_HOME}/hyde/wallbash/netflix.css|${WALLBASH_SCRIPTS}/netflix.sh
 .bd.dark-background {
@@ -32,15 +32,13 @@ h1, h2, h3, p, a, .title, .button, span, .text, .label {
 }
 EOF
 
-echo "Creating $NETFLIX_SH..."
+echo "Creating or overwriting $NETFLIX_SH..."
 cat > "$NETFLIX_SH" << 'EOF'
 #!/usr/bin/env bash
+# Optional: Copy netflix.css for debugging or fallback
 netflix_css="${XDG_CACHE_HOME}/hyde/wallbash/netflix.css"
 if [[ -f "${netflix_css}" ]]; then
   cp "${netflix_css}" "${HOME}/.cache/hyde/wallbash/netflix-current.css"
-  pkill -f "netflix"
-  sleep 1
-  /usr/bin/netflix &
 fi
 EOF
 chmod +x "$NETFLIX_SH"
@@ -86,52 +84,65 @@ function createWindow() {
     }
   });
 
-  // Load Wallbash colors from colors.conf
-  let bgColor = '#ffffff'; // Default background color
-  let textColor = '#000000'; // Default text color
-  const colorsFile = '/home/kot/.config/hypr/themes/colors.conf';
-  try {
-    if (!fs.existsSync(colorsFile)) {
-      console.error(`Colors file does not exist: ${colorsFile}`);
-    } else {
-      const colorsContent = fs.readFileSync(colorsFile, 'utf8');
-      console.log(`Reading colors from: ${colorsFile}`);
-      // Extract wallbash_pry1 for background
-      const pryMatch = colorsContent.match(/\$wallbash_pry1\s*=\s*([0-9a-fA-F]{6})/);
-      if (pryMatch) {
-        bgColor = `#${pryMatch[1]}`;
-        console.log(`Background color set to: ${bgColor}`);
+  // Function to read and apply colors
+  function applyColors() {
+    let bgColor = '#ffffff'; // Default background color
+    let textColor = '#000000'; // Default text color
+    const colorsFile = '/home/kot/.config/hypr/themes/colors.conf';
+    try {
+      if (!fs.existsSync(colorsFile)) {
+        console.error(`Colors file does not exist: ${colorsFile}`);
       } else {
-        console.error('wallbash_pry1 not found in colors.conf');
+        const colorsContent = fs.readFileSync(colorsFile, 'utf8');
+        console.log(`Reading colors from: ${colorsFile}`);
+        // Extract wallbash_pry1 for background
+        const pryMatch = colorsContent.match(/\$wallbash_pry1\s*=\s*([0-9a-fA-F]{6})/);
+        if (pryMatch) {
+          bgColor = `#${pryMatch[1]}`;
+          console.log(`Background color set to: ${bgColor}`);
+        } else {
+          console.error('wallbash_pry1 not found in colors.conf');
+        }
+        // Extract wallbash_txt1 for text
+        const txtMatch = colorsContent.match(/\$wallbash_txt1\s*=\s*([0-9a-fA-F]{6})/);
+        if (txtMatch) {
+          textColor = `#${txtMatch[1]}`;
+          console.log(`Text color set to: ${textColor}`);
+        } else {
+          console.error('wallbash_txt1 not found in colors.conf');
+        }
       }
-      // Extract wallbash_txt1 for text
-      const txtMatch = colorsContent.match(/\$wallbash_txt1\s*=\s*([0-9a-fA-F]{6})/);
-      if (txtMatch) {
-        textColor = `#${txtMatch[1]}`;
-        console.log(`Text color set to: ${textColor}`);
-      } else {
-        console.error('wallbash_txt1 not found in colors.conf');
-      }
+    } catch (err) {
+      console.error('Error reading Wallbash colors:', err);
     }
-  } catch (err) {
-    console.error('Error reading Wallbash colors:', err);
+
+    // Apply CSS to Netflix
+    mainWindow.webContents.insertCSS(`
+      .bd.dark-background {
+        background: ${bgColor} !important;
+      }
+      h1, h2, h3, p, a, .title, .button, span, .text, .label {
+        color: ${textColor} !important;
+      }
+    `);
   }
 
   // Load the splash screen
   mainWindow.loadFile('splash.html');
 
-  // Load Netflix website after 3 seconds and apply colors
+  // Load Netflix website after 3 seconds and apply initial colors
   setTimeout(() => {
     mainWindow.loadURL('https://www.netflix.com/browse');
     mainWindow.webContents.on('did-finish-load', () => {
-      mainWindow.webContents.insertCSS(`
-        .bd.dark-background {
-          background: ${bgColor} !important;
+      applyColors(); // Initial color application
+
+      // Watch colors.conf for changes
+      fs.watch('/home/kot/.config/hypr/themes/colors.conf', (eventType, filename) => {
+        if (eventType === 'change') {
+          console.log(`Detected change in colors.conf, updating colors...`);
+          applyColors();
         }
-        h1, h2, h3, p, a, .title, .button, span, .text, .label {
-          color: ${textColor} !important;
-        }
-      `);
+      });
     });
   }, 3000);
 
@@ -139,9 +150,6 @@ function createWindow() {
   mainWindow.setMenuBarVisibility(false);
   mainWindow.setMenu(null);
   mainWindow.show();
-
-  // Open the DevTools for debugging
-  mainWindow.webContents.openDevTools();
 }
 
 app.whenReady().then(async () => {
