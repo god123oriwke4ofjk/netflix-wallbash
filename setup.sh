@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 
-# Script to set up Netflix theming with Wallbash (dynamic color updates for Netflix and splash screen)
+# Script to set up Netflix theming with Wallbash (dynamic color updates for splash screen, user selection, and all Netflix UI)
 # Creates or overwrites netflix.dcol, netflix.sh, and updates main.js
 
+# Exit on error
 set -e
 
+# Define paths
 WALLBASH_ALWAYS_DIR="$HOME/.config/hyde/wallbash/always"
 WALLBASH_SCRIPTS_DIR="$HOME/.config/hyde/wallbash/scripts"
 NETFLIX_DCOL="$WALLBASH_ALWAYS_DIR/netflix.dcol"
@@ -14,25 +16,29 @@ MAIN_JS_BACKUP="/opt/Netflix/main.js.bak"
 COLORS_FILE="/home/kot/.config/hypr/themes/colors.conf"
 COLORS_DIR="/home/kot/.config/hypr/themes"
 
+# Check if running as root
 if [[ $EUID -eq 0 ]]; then
   echo "This script should not be run as root. It will use sudo for operations requiring root access."
   exit 1
 fi
 
+# Create directories if they don't exist
 mkdir -p "$WALLBASH_ALWAYS_DIR"
 mkdir -p "$WALLBASH_SCRIPTS_DIR"
 
+# Create or overwrite netflix.dcol
 echo "Creating or overwriting $NETFLIX_DCOL..."
 cat > "$NETFLIX_DCOL" << 'EOF'
 ${XDG_CACHE_HOME}/hyde/wallbash/netflix.css|${WALLBASH_SCRIPTS}/netflix.sh
-.bd.dark-background {
+.bd.dark-background, .profile-gate, .mainView, .account-section, .profile-gate-container, .main-header, .list-profiles-container, .service-page, .global-header.light-theme, body, html {
   background: <wallbash_pry1> !important;
 }
-h1, h2, h3, p, a, .title, .button, span, .text, .label {
+h1, h2, h3, p, a, .title, .button, span, .text, .label, .profile-name, .profile-link, .choose-profile, .nf-flat-button, .profile-icon, .profile-link-text, .global-header * {
   color: <wallbash_txt1> !important;
 }
 EOF
 
+# Create or overwrite netflix.sh and make it executable
 echo "Creating or overwriting $NETFLIX_SH..."
 cat > "$NETFLIX_SH" << 'EOF'
 #!/usr/bin/env bash
@@ -45,11 +51,13 @@ fi
 EOF
 chmod +x "$NETFLIX_SH"
 
+# Backup main.js if it exists
 if [[ -f "$MAIN_JS" ]]; then
   echo "Backing up $MAIN_JS to $MAIN_JS_BACKUP..."
   sudo cp "$MAIN_JS" "$MAIN_JS_BACKUP"
 fi
 
+# Create or update main.js
 echo "Updating $MAIN_JS..."
 sudo tee "$MAIN_JS" > /dev/null << 'EOF'
 const { app, components, BrowserWindow, shell, globalShortcut } = require('electron');
@@ -98,9 +106,9 @@ function createWindow() {
         const colorsContent = fs.readFileSync(colorsFile, 'utf8');
         console.log(`Reading colors from: ${colorsFile}`);
         // Extract wallbash_pry1 for background
-        const PryMatch = colorsContent.match(/\$wallbash_pry1\s*=\s*(?:0x)?([0-9a-fA-F]{6})/);
-        if (PryMatch) {
-          bgColor = `#${PryMatch[1]}`;
+        const pryMatch = colorsContent.match(/\$wallbash_pry1\s*=\s*(?:0x)?([0-9a-fA-F]{6})/);
+        if (pryMatch) {
+          bgColor = `#${pryMatch[1]}`;
           console.log(`Background color set to: ${bgColor}`);
         } else {
           console.error('wallbash_pry1 not found in colors.conf');
@@ -131,10 +139,10 @@ function createWindow() {
       `);
     } else {
       mainWindow.webContents.insertCSS(`
-        .bd.dark-background {
+        .bd.dark-background, .profile-gate, .mainView, .account-section, .profile-gate-container, .main-header, .list-profiles-container, .service-page, .global-header.light-theme, body, html {
           background: ${bgColor} !important;
         }
-        h1, h2, h3, p, a, .title, .button, span, .text, .label {
+        h1, h2, h3, p, a, .title, .button, span, .text, .label, .profile-name, .profile-link, .choose-profile, .nf-flat-button, .profile-icon, .profile-link-text, .global-header * {
           color: ${textColor} !important;
         }
       `);
@@ -196,11 +204,13 @@ app.on('will-quit', () => {
 });
 EOF
 
+# Verify file creation
 echo "Verifying created files..."
 ls -l "$NETFLIX_DCOL"
 ls -l "$NETFLIX_SH"
 sudo ls -l "$MAIN_JS"
 
+# Check if main.js contains openDevTools
 if sudo grep -q "openDevTools" "$MAIN_JS"; then
   echo "Warning: $MAIN_JS contains openDevTools. Ensuring it is commented out..."
   sudo sed -i 's/mainWindow\.webContents\.openDevTools()/\/\/ mainWindow.webContents.openDevTools()/' "$MAIN_JS"
