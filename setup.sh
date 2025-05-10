@@ -3,10 +3,8 @@
 # Script to set up Netflix theming with Wallbash (dynamic color updates)
 # Creates or overwrites netflix.dcol, netflix.sh, and updates main.js
 
-# Exit on error
 set -e
 
-# Define paths
 WALLBASH_ALWAYS_DIR="$HOME/.config/hyde/wallbash/always"
 WALLBASH_SCRIPTS_DIR="$HOME/.config/hyde/wallbash/scripts"
 NETFLIX_DCOL="$WALLBASH_ALWAYS_DIR/netflix.dcol"
@@ -14,18 +12,16 @@ NETFLIX_SH="$WALLBASH_SCRIPTS_DIR/netflix.sh"
 MAIN_JS="/opt/Netflix/main.js"
 MAIN_JS_BACKUP="/opt/Netflix/main.js.bak"
 COLORS_FILE="/home/kot/.config/hypr/themes/colors.conf"
+COLORS_DIR="/home/kot/.config/hypr/themes"
 
-# Check if running as root
 if [[ $EUID -eq 0 ]]; then
   echo "This script should not be run as root. It will use sudo for operations requiring root access."
   exit 1
 fi
 
-# Create directories if they don't exist
 mkdir -p "$WALLBASH_ALWAYS_DIR"
 mkdir -p "$WALLBASH_SCRIPTS_DIR"
 
-# Create or overwrite netflix.dcol
 echo "Creating or overwriting $NETFLIX_DCOL..."
 cat > "$NETFLIX_DCOL" << 'EOF'
 ${XDG_CACHE_HOME}/hyde/wallbash/netflix.css|${WALLBASH_SCRIPTS}/netflix.sh
@@ -37,7 +33,6 @@ h1, h2, h3, p, a, .title, .button, span, .text, .label {
 }
 EOF
 
-# Create or overwrite netflix.sh and make it executable
 echo "Creating or overwriting $NETFLIX_SH..."
 cat > "$NETFLIX_SH" << 'EOF'
 #!/usr/bin/env bash
@@ -50,13 +45,11 @@ fi
 EOF
 chmod +x "$NETFLIX_SH"
 
-# Backup main.js if it exists
 if [[ -f "$MAIN_JS" ]]; then
   echo "Backing up $MAIN_JS to $MAIN_JS_BACKUP..."
   sudo cp "$MAIN_JS" "$MAIN_JS_BACKUP"
 fi
 
-# Create or update main.js
 echo "Updating $MAIN_JS..."
 sudo tee "$MAIN_JS" > /dev/null << 'EOF'
 const { app, components, BrowserWindow, shell, globalShortcut } = require('electron');
@@ -145,18 +138,18 @@ function createWindow() {
     mainWindow.webContents.on('did-finish-load', () => {
       applyColors(); // Initial color application
 
-      // Watch colors.conf for changes
-      const colorsFile = '/home/kot/.config/hypr/themes/colors.conf';
-      if (fs.existsSync(colorsFile)) {
-        fs.watch(colorsFile, { persistent: true }, (eventType, filename) => {
-          console.log(`File watch event: ${eventType}, filename: ${filename}`);
-          if (eventType === 'change') {
-            console.log(`Detected change in ${colorsFile}, updating colors...`);
+      // Watch the directory for changes to colors.conf
+      const colorsDir = '/home/kot/.config/hypr/themes';
+      if (fs.existsSync(colorsDir)) {
+        fs.watch(colorsDir, { persistent: true }, (eventType, filename) => {
+          console.log(`Directory watch event: ${eventType}, filename: ${filename}`);
+          if (filename === 'colors.conf' && fs.existsSync('/home/kot/.config/hypr/themes/colors.conf')) {
+            console.log(`Detected ${eventType} for colors.conf, updating colors...`);
             applyColors();
           }
         });
       } else {
-        console.error(`Cannot watch ${colorsFile}: file does not exist`);
+        console.error(`Cannot watch ${colorsDir}: directory does not exist`);
       }
     });
   }, 3000);
@@ -188,13 +181,11 @@ app.on('will-quit', () => {
 });
 EOF
 
-# Verify file creation
 echo "Verifying created files..."
 ls -l "$NETFLIX_DCOL"
 ls -l "$NETFLIX_SH"
 sudo ls -l "$MAIN_JS"
 
-# Check if main.js contains openDevTools
 if sudo grep -q "openDevTools" "$MAIN_JS"; then
   echo "Warning: $MAIN_JS contains openDevTools. Ensuring it is commented out..."
   sudo sed -i 's/mainWindow\.webContents\.openDevTools()/\/\/ mainWindow.webContents.openDevTools()/' "$MAIN_JS"
