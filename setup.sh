@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Script to set up Netflix theming with Wallbash (dynamic color updates)
+# Script to set up Netflix theming with Wallbash (dynamic color updates for Netflix and splash screen)
 # Creates or overwrites netflix.dcol, netflix.sh, and updates main.js
 
 set -e
@@ -87,7 +87,7 @@ function createWindow() {
   });
 
   // Function to read and apply colors
-  function applyColors() {
+  function applyColors(isSplash = false) {
     let bgColor = '#ffffff'; // Default background color
     let textColor = '#000000'; // Default text color
     const colorsFile = '/home/kot/.config/hypr/themes/colors.conf';
@@ -98,9 +98,9 @@ function createWindow() {
         const colorsContent = fs.readFileSync(colorsFile, 'utf8');
         console.log(`Reading colors from: ${colorsFile}`);
         // Extract wallbash_pry1 for background
-        const pryMatch = colorsContent.match(/\$wallbash_pry1\s*=\s*(?:0x)?([0-9a-fA-F]{6})/);
-        if (pryMatch) {
-          bgColor = `#${pryMatch[1]}`;
+        const PryMatch = colorsContent.match(/\$wallbash_pry1\s*=\s*(?:0x)?([0-9a-fA-F]{6})/);
+        if (PryMatch) {
+          bgColor = `#${PryMatch[1]}`;
           console.log(`Background color set to: ${bgColor}`);
         } else {
           console.error('wallbash_pry1 not found in colors.conf');
@@ -118,25 +118,40 @@ function createWindow() {
       console.error('Error reading Wallbash colors:', err);
     }
 
-    // Apply CSS to Netflix
-    mainWindow.webContents.insertCSS(`
-      .bd.dark-background {
-        background: ${bgColor} !important;
-      }
-      h1, h2, h3, p, a, .title, .button, span, .text, .label {
-        color: ${textColor} !important;
-      }
-    `);
+    // Apply CSS based on context (splash or Netflix)
+    if (isSplash) {
+      mainWindow.webContents.insertCSS(`
+        body {
+          background: ${bgColor} !important;
+        }
+        .dot-pulse, .dot-pulse::before, .dot-pulse::after {
+          background-color: ${textColor} !important;
+          color: ${textColor} !important;
+        }
+      `);
+    } else {
+      mainWindow.webContents.insertCSS(`
+        .bd.dark-background {
+          background: ${bgColor} !important;
+        }
+        h1, h2, h3, p, a, .title, .button, span, .text, .label {
+          color: ${textColor} !important;
+        }
+      `);
+    }
   }
 
-  // Load the splash screen
+  // Load the splash screen and apply colors
   mainWindow.loadFile('splash.html');
+  mainWindow.webContents.on('did-finish-load', () => {
+    applyColors(true); // Apply colors to splash screen
+  });
 
-  // Load Netflix website after 3 seconds and apply initial colors
+  // Load Netflix website after 3 seconds and apply colors
   setTimeout(() => {
     mainWindow.loadURL('https://www.netflix.com/browse');
     mainWindow.webContents.on('did-finish-load', () => {
-      applyColors(); // Initial color application
+      applyColors(false); // Apply colors to Netflix
 
       // Watch the directory for changes to colors.conf
       const colorsDir = '/home/kot/.config/hypr/themes';
@@ -145,7 +160,7 @@ function createWindow() {
           console.log(`Directory watch event: ${eventType}, filename: ${filename}`);
           if (filename === 'colors.conf' && fs.existsSync('/home/kot/.config/hypr/themes/colors.conf')) {
             console.log(`Detected ${eventType} for colors.conf, updating colors...`);
-            applyColors();
+            applyColors(mainWindow.webContents.getURL().includes('splash.html'));
           }
         });
       } else {
