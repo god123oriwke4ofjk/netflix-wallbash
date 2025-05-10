@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Script to set up Netflix theming with Wallbash (dynamic color updates for splash screen, user selection, help center, and all Netflix UI)
+# Script to set up Netflix theming with Wallbash (dynamic color updates for splash screen, user selection, help center, manage users, and all Netflix UI)
 # Creates or overwrites netflix.dcol, netflix.sh, and updates main.js
 
 # Exit on error
@@ -30,10 +30,10 @@ mkdir -p "$WALLBASH_SCRIPTS_DIR"
 echo "Creating or overwriting $NETFLIX_DCOL..."
 cat > "$NETFLIX_DCOL" << 'EOF'
 ${XDG_CACHE_HOME}/hyde/wallbash/netflix.css|${WALLBASH_SCRIPTS}/netflix.sh
-.bd.dark-background, .profile-gate, .mainView, .account-section, .profile-gate-container, .main-header, .list-profiles-container, .service-page, .global-header.light-theme, .global-page-footer, .global-page-footer.light-theme, .container.search-focus, .search-intro.container, .global-content, .page-home-redesign .global-content, body, html, [style*="position: fixed"] {
+.bd.dark-background, .profile-gate, .mainView, .account-section, .profile-gate-container, .main-header, .list-profiles-container, .service-page, .global-header.light-theme, .global-page-footer, .global-page-footer.light-theme, .container.search-focus, .search-intro.container, .global-content, .page-home-redesign .global-content, .manage-profiles, .profile-management, .js-focus-visible body, body, html, [style*="position: fixed"], [style*="position: sticky"] {
   background: <wallbash_pry1> !important;
 }
-h1, h2, h3, p, a, .title, .button, span, .text, .label, .profile-name, .profile-link, .choose-profile, .nf-flat-button, .profile-icon, .profile-link-text, .global-header *, .global-page-footer *, .container.search-focus *, .global-content * {
+h1, h2, h3, p, a, .title, .button, span, .text, .label, .profile-name, .profile-link, .choose-profile, .nf-flat-button, .profile-icon, .profile-link-text, .global-header *, .global-page-footer *, .container.search-focus *, .global-content *, .manage-profiles *, .profile-management * {
   color: <wallbash_txt1> !important;
 }
 ::selection {
@@ -143,10 +143,10 @@ function createWindow() {
       `);
     } else {
       mainWindow.webContents.insertCSS(`
-        .bd.dark-background, .profile-gate, .mainView, .account-section, .profile-gate-container, .main-header, .list-profiles-container, .service-page, .global-header.light-theme, .global-page-footer, .global-page-footer.light-theme, .container.search-focus, .search-intro.container, .global-content, .page-home-redesign .global-content, body, html, [style*="position: fixed"] {
+        .bd.dark-background, .profile-gate, .mainView, .account-section, .profile-gate-container, .main-header, .list-profiles-container, .service-page, .global-header.light-theme, .global-page-footer, .global-page-footer.light-theme, .container.search-focus, .search-intro.container, .global-content, .page-home-redesign .global-content, .manage-profiles, .profile-management, .js-focus-visible body, body, html, [style*="position: fixed"], [style*="position: sticky"] {
           background: ${bgColor} !important;
         }
-        h1, h2, h3, p, a, .title, .button, span, .text, .label, .profile-name, .profile-link, .choose-profile, .nf-flat-button, .profile-icon, .profile-link-text, .global-header *, .global-page-footer *, .container.search-focus *, .global-content * {
+        h1, h2, h3, p, a, .title, .button, span, .text, .label, .profile-name, .profile-link, .choose-profile, .nf-flat-button, .profile-icon, .profile-link-text, .global-header *, .global-page-footer *, .container.search-focus *, .global-content *, .manage-profiles *, .profile-management * {
           color: ${textColor} !important;
         }
         ::selection {
