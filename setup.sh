@@ -3,8 +3,10 @@
 # Script to set up Netflix theming with Wallbash (dynamic color updates)
 # Creates or overwrites netflix.dcol, netflix.sh, and updates main.js
 
+# Exit on error
 set -e
 
+# Define paths
 WALLBASH_ALWAYS_DIR="$HOME/.config/hyde/wallbash/always"
 WALLBASH_SCRIPTS_DIR="$HOME/.config/hyde/wallbash/scripts"
 NETFLIX_DCOL="$WALLBASH_ALWAYS_DIR/netflix.dcol"
@@ -13,14 +15,17 @@ MAIN_JS="/opt/Netflix/main.js"
 MAIN_JS_BACKUP="/opt/Netflix/main.js.bak"
 COLORS_FILE="/home/kot/.config/hypr/themes/colors.conf"
 
+# Check if running as root
 if [[ $EUID -eq 0 ]]; then
   echo "This script should not be run as root. It will use sudo for operations requiring root access."
   exit 1
 fi
 
+# Create directories if they don't exist
 mkdir -p "$WALLBASH_ALWAYS_DIR"
 mkdir -p "$WALLBASH_SCRIPTS_DIR"
 
+# Create or overwrite netflix.dcol
 echo "Creating or overwriting $NETFLIX_DCOL..."
 cat > "$NETFLIX_DCOL" << 'EOF'
 ${XDG_CACHE_HOME}/hyde/wallbash/netflix.css|${WALLBASH_SCRIPTS}/netflix.sh
@@ -32,22 +37,26 @@ h1, h2, h3, p, a, .title, .button, span, .text, .label {
 }
 EOF
 
+# Create or overwrite netflix.sh and make it executable
 echo "Creating or overwriting $NETFLIX_SH..."
 cat > "$NETFLIX_SH" << 'EOF'
 #!/usr/bin/env bash
-# Optional: Copy netflix.css for debugging or fallback
+# Copies netflix.css for debugging or fallback
 netflix_css="${XDG_CACHE_HOME}/hyde/wallbash/netflix.css"
 if [[ -f "${netflix_css}" ]]; then
   cp "${netflix_css}" "${HOME}/.cache/hyde/wallbash/netflix-current.css"
+  echo "Copied $netflix_css to netflix-current.css for debugging"
 fi
 EOF
 chmod +x "$NETFLIX_SH"
 
+# Backup main.js if it exists
 if [[ -f "$MAIN_JS" ]]; then
   echo "Backing up $MAIN_JS to $MAIN_JS_BACKUP..."
   sudo cp "$MAIN_JS" "$MAIN_JS_BACKUP"
 fi
 
+# Create or update main.js
 echo "Updating $MAIN_JS..."
 sudo tee "$MAIN_JS" > /dev/null << 'EOF'
 const { app, components, BrowserWindow, shell, globalShortcut } = require('electron');
@@ -96,7 +105,7 @@ function createWindow() {
         const colorsContent = fs.readFileSync(colorsFile, 'utf8');
         console.log(`Reading colors from: ${colorsFile}`);
         // Extract wallbash_pry1 for background
-        const pryMatch = colorsContent.match(/\$wallbash_pry1\s*=\s*([0-9a-fA-F]{6})/);
+        const pryMatch = colorsContent.match(/\$wallbash_pry1\s*=\s*(?:0x)?([0-9a-fA-F]{6})/);
         if (pryMatch) {
           bgColor = `#${pryMatch[1]}`;
           console.log(`Background color set to: ${bgColor}`);
@@ -104,7 +113,7 @@ function createWindow() {
           console.error('wallbash_pry1 not found in colors.conf');
         }
         // Extract wallbash_txt1 for text
-        const txtMatch = colorsContent.match(/\$wallbash_txt1\s*=\s*([0-9a-fA-F]{6})/);
+        const txtMatch = colorsContent.match(/\$wallbash_txt1\s*=\s*(?:0x)?([0-9a-fA-F]{6})/);
         if (txtMatch) {
           textColor = `#${txtMatch[1]}`;
           console.log(`Text color set to: ${textColor}`);
@@ -137,12 +146,18 @@ function createWindow() {
       applyColors(); // Initial color application
 
       // Watch colors.conf for changes
-      fs.watch('/home/kot/.config/hypr/themes/colors.conf', (eventType, filename) => {
-        if (eventType === 'change') {
-          console.log(`Detected change in colors.conf, updating colors...`);
-          applyColors();
-        }
-      });
+      const colorsFile = '/home/kot/.config/hypr/themes/colors.conf';
+      if (fs.existsSync(colorsFile)) {
+        fs.watch(colorsFile, { persistent: true }, (eventType, filename) => {
+          console.log(`File watch event: ${eventType}, filename: ${filename}`);
+          if (eventType === 'change') {
+            console.log(`Detected change in ${colorsFile}, updating colors...`);
+            applyColors();
+          }
+        });
+      } else {
+        console.error(`Cannot watch ${colorsFile}: file does not exist`);
+      }
     });
   }, 3000);
 
@@ -173,10 +188,17 @@ app.on('will-quit', () => {
 });
 EOF
 
+# Verify file creation
 echo "Verifying created files..."
 ls -l "$NETFLIX_DCOL"
 ls -l "$NETFLIX_SH"
 sudo ls -l "$MAIN_JS"
+
+# Check if main.js contains openDevTools
+if sudo grep -q "openDevTools" "$MAIN_JS"; then
+  echo "Warning: $MAIN_JS contains openDevTools. Ensuring it is commented out..."
+  sudo sed -i 's/mainWindow\.webContents\.openDevTools()/\/\/ mainWindow.webContents.openDevTools()/' "$MAIN_JS"
+fi
 
 echo "Setup complete! Please test the Netflix app and wallpaper changes."
 echo "To test, run: netflix"
