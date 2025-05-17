@@ -2,6 +2,7 @@
 
 # Script to set up Netflix theming with Wallbash (dynamic color updates for splash screen, user selection, help center, manage users, and all Netflix UI)
 # Creates or overwrites netflix.dcol, netflix.sh, and updates main.js
+# With -remove, reverts all changes to restore fresh Netflix state
 
 # Exit on error
 set -e
@@ -11,10 +12,51 @@ WALLBASH_ALWAYS_DIR="$HOME/.config/hyde/wallbash/always"
 WALLBASH_SCRIPTS_DIR="$HOME/.config/hyde/wallbash/scripts"
 NETFLIX_DCOL="$WALLBASH_ALWAYS_DIR/netflix.dcol"
 NETFLIX_SH="$WALLBASH_SCRIPTS_DIR/netflix.sh"
+NETFLIX_CSS="$HOME/.cache/hyde/wallbash/netflix-current.css"
 MAIN_JS="/opt/Netflix/main.js"
 MAIN_JS_BACKUP="/opt/Netflix/main.js.bak"
 COLORS_FILE="/home/kot/.config/hypr/themes/colors.conf"
 COLORS_DIR="/home/kot/.config/hypr/themes"
+
+# Check for -remove parameter
+if [[ "$1" == "-remove" ]]; then
+  echo "Removing Netflix theming setup..."
+
+  # Remove netflix.dcol if it exists
+  if [[ -f "$NETFLIX_DCOL" ]]; then
+    echo "Removing $NETFLIX_DCOL..."
+    rm "$NETFLIX_DCOL"
+  else
+    echo "$NETFLIX_DCOL does not exist, skipping..."
+  fi
+
+  # Remove netflix.sh if it exists
+  if [[ -f "$NETFLIX_SH" ]]; then
+    echo "Removing $NETFLIX_SH..."
+    rm "$NETFLIX_SH"
+  else
+    echo "$NETFLIX_SH does not exist, skipping..."
+  fi
+
+  # Remove netflix-current.css if it exists
+  if [[ -f "$NETFLIX_CSS" ]]; then
+    echo "Removing $NETFLIX_CSS..."
+    rm "$NETFLIX_CSS"
+  else
+    echo "$NETFLIX_CSS does not exist, skipping..."
+  fi
+
+  # Restore main.js from backup if it exists
+  if [[ -f "$MAIN_JS_BACKUP" ]]; then
+    echo "Restoring $MAIN_JS from $MAIN_JS_BACKUP..."
+    sudo mv "$MAIN_JS_BACKUP" "$MAIN_JS"
+  else
+    echo "$MAIN_JS_BACKUP does not exist, cannot restore main.js..."
+  fi
+
+  echo "Removal complete! Netflix setup has been reverted."
+  exit 0
+fi
 
 # Check if running as root
 if [[ $EUID -eq 0 ]]; then
@@ -227,3 +269,4 @@ fi
 echo "Setup complete! Please test the Netflix app and wallpaper changes."
 echo "To test, run: netflix"
 echo "To change wallpaper: ~/.config/hyde/scripts/swwwallbash.sh /path/to/wallpaper.png"
+echo "To remove all changes: $0 -remove"
