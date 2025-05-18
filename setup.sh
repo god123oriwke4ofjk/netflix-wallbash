@@ -268,5 +268,5 @@ fi
 
 echo "Setup complete! Please test the Netflix app and wallpaper changes."
 echo "To test, run: netflix"
-echo "To change wallpaper: ~/.config/hyde/scripts/swwwallbash.sh /path/to/wallpaper.png"
+echo "To reload wallbash: hyprctl reload"
 echo "To remove all changes: $0 -remove"
