@@ -15,8 +15,8 @@ NETFLIX_SH="$WALLBASH_SCRIPTS_DIR/netflix.sh"
 NETFLIX_CSS="$HOME/.cache/hyde/wallbash/netflix-current.css"
 MAIN_JS="/opt/Netflix/main.js"
 MAIN_JS_BACKUP="/opt/Netflix/main.js.bak"
-COLORS_FILE="/home/kot/.config/hypr/themes/colors.conf"
-COLORS_DIR="/home/kot/.config/hypr/themes"
+COLORS_FILE="/home/$USER/.config/hypr/themes/colors.conf"
+COLORS_DIR="/home/$USER/.config/hypr/themes"
 
 # Check for -remove parameter
 if [[ "$1" == "-remove" ]]; then
@@ -144,7 +144,7 @@ function createWindow() {
   function applyColors(isSplash = false) {
     let bgColor = '#ffffff'; // Default background color
     let textColor = '#000000'; // Default text color
-    const colorsFile = '/home/kot/.config/hypr/themes/colors.conf';
+    const colorsFile = '/home/$USER/.config/hypr/themes/colors.conf';
     try {
       if (!fs.existsSync(colorsFile)) {
         console.error(`Colors file does not exist: ${colorsFile}`);
@@ -212,11 +212,11 @@ function createWindow() {
       applyColors(false); // Apply colors to Netflix
 
       // Watch the directory for changes to colors.conf
-      const colorsDir = '/home/kot/.config/hypr/themes';
+      const colorsDir = '/home/$USER/.config/hypr/themes';
       if (fs.existsSync(colorsDir)) {
         fs.watch(colorsDir, { persistent: true }, (eventType, filename) => {
           console.log(`Directory watch event: ${eventType}, filename: ${filename}`);
-          if (filename === 'colors.conf' && fs.existsSync('/home/kot/.config/hypr/themes/colors.conf')) {
+          if (filename === 'colors.conf' && fs.existsSync('/home/$USER/.config/hypr/themes/colors.conf')) {
             console.log(`Detected ${eventType} for colors.conf, updating colors...`);
             applyColors(mainWindow.webContents.getURL().includes('splash.html'));
           }
