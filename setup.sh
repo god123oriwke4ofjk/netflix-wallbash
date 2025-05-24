@@ -15,8 +15,8 @@ NETFLIX_SH="$WALLBASH_SCRIPTS_DIR/netflix.sh"
 NETFLIX_CSS="$HOME/.cache/hyde/wallbash/netflix-current.css"
 MAIN_JS="/opt/Netflix/main.js"
 MAIN_JS_BACKUP="/opt/Netflix/main.js.bak"
-COLORS_FILE="/home/$USER/.config/hypr/themes/colors.conf"
-COLORS_DIR="/home/$USER/.config/hypr/themes"
+COLORS_FILE="$HOME/.config/hypr/themes/colors.conf"
+COLORS_DIR="$HOME/.config/hypr/themes"
 
 # Check for -remove parameter
 if [[ "$1" == "-remove" ]]; then
@@ -67,11 +67,12 @@ fi
 # Create directories if they don't exist
 mkdir -p "$WALLBASH_ALWAYS_DIR"
 mkdir -p "$WALLBASH_SCRIPTS_DIR"
+mkdir -p "$(dirname "$NETFLIX_CSS")"
 
 # Create or overwrite netflix.dcol
 echo "Creating or overwriting $NETFLIX_DCOL..."
 cat > "$NETFLIX_DCOL" << 'EOF'
-${XDG_CACHE_HOME}/hyde/wallbash/netflix.css|${WALLBASH_SCRIPTS}/netflix.sh
+${HOME}/.cache/hyde/wallbash/netflix.css|${WALLBASH_SCRIPTS}/netflix.sh
 .bd.dark-background, .profile-gate, .mainView, .account-section, .profile-gate-container, .main-header, .list-profiles-container, .service-page, .global-header.light-theme, .global-page-footer, .global-page-footer.light-theme, .container.search-focus, .search-intro.container, .global-content, .page-home-redesign .global-content, .manage-profiles, .profile-management, .js-focus-visible body, body, html, [style*="position: fixed"], [style*="position: sticky"] {
   background: <wallbash_pry1> !important;
 }
@@ -89,10 +90,13 @@ echo "Creating or overwriting $NETFLIX_SH..."
 cat > "$NETFLIX_SH" << 'EOF'
 #!/usr/bin/env bash
 # Copies netflix.css for debugging or fallback
-netflix_css="${XDG_CACHE_HOME}/hyde/wallbash/netflix.css"
+netflix_css="${HOME}/.cache/hyde/wallbash/netflix.css"
+netflix_current_css="${HOME}/.cache/hyde/wallbash/netflix-current.css"
 if [[ -f "${netflix_css}" ]]; then
-  cp "${netflix_css}" "${HOME}/.cache/hyde/wallbash/netflix-current.css"
-  echo "Copied $netflix_css to netflix-current.css for debugging"
+  cp "${netflix_css}" "${netflix_current_css}"
+  echo "Copied ${netflix_css} to ${netflix_current_css} for debugging"
+else
+  echo "Error: ${netflix_css} not found"
 fi
 EOF
 chmod +x "$NETFLIX_SH"
@@ -101,6 +105,8 @@ chmod +x "$NETFLIX_SH"
 if [[ -f "$MAIN_JS" ]]; then
   echo "Backing up $MAIN_JS to $MAIN_JS_BACKUP..."
   sudo cp "$MAIN_JS" "$MAIN_JS_BACKUP"
+else
+  echo "Warning: $MAIN_JS not found, creating new file..."
 fi
 
 # Create or update main.js
@@ -110,6 +116,7 @@ const { app, components, BrowserWindow, shell, globalShortcut } = require('elect
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
+const os = require('os');
 
 // Dynamically import electron-context-menu (default export)
 import('electron-context-menu').then((contextMenuModule) => {
@@ -144,7 +151,7 @@ function createWindow() {
   function applyColors(isSplash = false) {
     let bgColor = '#ffffff'; // Default background color
     let textColor = '#000000'; // Default text color
-    const colorsFile = '/home/$USER/.config/hypr/themes/colors.conf';
+    const colorsFile = path.join(os.homedir(), '.config', 'hypr', 'themes', 'colors.conf');
     try {
       if (!fs.existsSync(colorsFile)) {
         console.error(`Colors file does not exist: ${colorsFile}`);
@@ -152,20 +159,20 @@ function createWindow() {
         const colorsContent = fs.readFileSync(colorsFile, 'utf8');
         console.log(`Reading colors from: ${colorsFile}`);
         // Extract wallbash_pry1 for background
-        const pryMatch = colorsContent.match(/\$wallbash_pry1\s*=\s*(?:0x)?([0-9a-fA-F]{6})/);
+        const pryMatch = colorsContent.match(/\$wallbash_pry1\s*=\s*(?:0x|#)?([0-9a-fA-F]{6})/);
         if (pryMatch) {
           bgColor = `#${pryMatch[1]}`;
           console.log(`Background color set to: ${bgColor}`);
         } else {
-          console.error('wallbash_pry1 not found in colors.conf');
+          console.error('wallbash_pry1 not found or invalid in colors.conf');
         }
         // Extract wallbash_txt1 for text
-        const txtMatch = colorsContent.match(/\$wallbash_txt1\s*=\s*(?:0x)?([0-9a-fA-F]{6})/);
+        const txtMatch = colorsContent.match(/\$wallbash_txt1\s*=\s*(?:0x|#)?([0-9a-fA-F]{6})/);
         if (txtMatch) {
           textColor = `#${txtMatch[1]}`;
           console.log(`Text color set to: ${textColor}`);
         } else {
-          console.error('wallbash_txt1 not found in colors.conf');
+          console.error('wallbash_txt1 not found or invalid in colors.conf');
         }
       }
     } catch (err) {
@@ -212,11 +219,11 @@ function createWindow() {
       applyColors(false); // Apply colors to Netflix
 
       // Watch the directory for changes to colors.conf
-      const colorsDir = '/home/$USER/.config/hypr/themes';
+      const colorsDir = path.join(os.homedir(), '.config', 'hypr', 'themes');
       if (fs.existsSync(colorsDir)) {
         fs.watch(colorsDir, { persistent: true }, (eventType, filename) => {
           console.log(`Directory watch event: ${eventType}, filename: ${filename}`);
-          if (filename === 'colors.conf' && fs.existsSync('/home/$USER/.config/hypr/themes/colors.conf')) {
+          if (filename === 'colors.conf' && fs.existsSync(colorsFile)) {
             console.log(`Detected ${eventType} for colors.conf, updating colors...`);
             applyColors(mainWindow.webContents.getURL().includes('splash.html'));
           }
@@ -256,9 +263,9 @@ EOF
 
 # Verify file creation
 echo "Verifying created files..."
-ls -l "$NETFLIX_DCOL"
-ls -l "$NETFLIX_SH"
-sudo ls -l "$MAIN_JS"
+ls -l "$NETFLIX_DCOL" || echo "$NETFLIX_DCOL not found"
+ls -l "$NETFLIX_SH" || echo "$NETFLIX_SH not found"
+sudo ls -l "$MAIN_JS" || echo "$MAIN_JS not found"
 
 # Check if main.js contains openDevTools
 if sudo grep -q "openDevTools" "$MAIN_JS"; then
@@ -266,7 +273,22 @@ if sudo grep -q "openDevTools" "$MAIN_JS"; then
   sudo sed -i 's/mainWindow\.webContents\.openDevTools()/\/\/ mainWindow.webContents.openDevTools()/' "$MAIN_JS"
 fi
 
+# Check colors.conf
+if [[ -f "$COLORS_FILE" ]]; then
+  echo "colors.conf found, checking for required variables..."
+  for var in wallbash_pry1 wallbash_txt1; do
+    if grep -q "$var" "$COLORS_FILE"; then
+      echo "$var defined in colors.conf"
+    else
+      echo "Warning: $var not defined in colors.conf, may cause theming issues"
+    fi
+  done
+else
+  echo "Error: colors.conf not found at $COLORS_FILE, theming may not work"
+fi
+
 echo "Setup complete! Please test the Netflix app and wallpaper changes."
 echo "To test, run: netflix"
 echo "To reload wallbash: hyprctl reload"
 echo "To remove all changes: $0 -remove"
+echo "If the theme does not apply, check ~/.cache/hyde/wallbash/netflix-current.css and /opt/Netflix/main.js logs."
